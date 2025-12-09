@@ -1,4 +1,5 @@
-import React from 'react'
+'use client'
+import React, { useEffect, useState } from 'react'
 import { factoryLicenseDetailsSchema } from '@/types'
 import { IFactoryLicenseDetails } from '@/models/factoryLicenseDetails.model'
 import { useToast } from '../ui/use-toast'
@@ -8,8 +9,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { 
-  Building2, 
+import {
+  Building2,
   Waves,
   FileText,
   Factory,
@@ -29,7 +30,8 @@ import {
   AlertTriangle,
   PauseCircle,
   XCircle,
-  Files
+  Files,
+  Loader2
 } from 'lucide-react'
 import {
   Form,
@@ -40,6 +42,7 @@ import {
   FormMessage,
 } from '../ui/form'
 import FileUpload from '../file-upload'
+import { getUser, getAgenciesByUser, updateFactoryLicense } from '@/lib/queries'
 
 type Props = {
   data?: Partial<IFactoryLicenseDetails>
@@ -76,13 +79,75 @@ const getIconForDocument = (name: string) => {
 const FactoryLicenseDetails = ({ data }: Props) => {
   const { toast } = useToast()
   const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [agencyId, setAgencyId] = useState<string | null>(null)
+
   const form = useForm<z.infer<typeof factoryLicenseDetailsSchema>>({
     resolver: zodResolver(factoryLicenseDetailsSchema),
   })
 
-  const handleSubmit = async (
-    values: z.infer<typeof factoryLicenseDetailsSchema>
-  ) => {}
+  // Fetch user's agency on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const user = await getUser()
+        if (!user?._id) {
+          toast({ title: 'Error', description: 'Please login first', variant: 'destructive' })
+          router.push('/agency/sign-in')
+          return
+        }
+
+        const agencies = await getAgenciesByUser(user._id)
+        if (agencies && agencies.length > 0) {
+          setAgencyId(agencies[0]._id)
+          // Load existing data if available
+          if (agencies[0].factoryLicense) {
+            Object.entries(agencies[0].factoryLicense).forEach(([key, value]) => {
+              if (value) {
+                form.setValue(key as any, value as string)
+              }
+            })
+          }
+        } else {
+          toast({
+            title: 'No Agency Found',
+            description: 'Please create an agency first in Agency Information',
+            variant: 'destructive'
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error)
+        toast({ title: 'Error', description: 'Failed to load data', variant: 'destructive' })
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  const handleSubmit = async (values: z.infer<typeof factoryLicenseDetailsSchema>) => {
+    if (!agencyId) {
+      toast({
+        title: 'Error',
+        description: 'No agency found. Please create an agency first.',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    setSaving(true)
+    try {
+      await updateFactoryLicense(agencyId, values)
+      toast({ title: 'Success', description: 'Factory License documents saved successfully!' })
+    } catch (error) {
+      console.error('Error saving:', error)
+      toast({ title: 'Error', description: 'Failed to save documents', variant: 'destructive' })
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const renderFileUploadField = (
     name: keyof z.infer<typeof factoryLicenseDetailsSchema>,
@@ -122,6 +187,14 @@ const FactoryLicenseDetails = ({ data }: Props) => {
     )
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-white">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white p-4 md:p-8 font-sora">
       {/* Decorative elements */}
@@ -129,7 +202,7 @@ const FactoryLicenseDetails = ({ data }: Props) => {
         <div className="absolute -left-4 top-20 w-64 h-64 bg-blue-200/20 rounded-full blur-3xl" />
         <div className="absolute right-10 bottom-10 w-96 h-96 bg-blue-300/20 rounded-full blur-3xl" />
       </div>
-      
+
       <Card className="w-full bg-white/80 backdrop-blur-lg shadow-xl border border-blue-100 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-bl-full" />
 
@@ -210,16 +283,23 @@ const FactoryLicenseDetails = ({ data }: Props) => {
                 </div>
               </div>
 
+              <div className='pt-8 flex justify-end'>
+                <Button
+                  type="submit"
+                  disabled={saving || !agencyId}
+                  className="bg-blue-600 hover:bg-blue-700 text-sm text-white font-semibold p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Factory License Documents'
+                  )}
+                </Button>
+              </div>
             </form>
-
-            <div className='pt-8 flex justify-end'>
-                      <Button 
-                      type="submit" 
-                      className=" bg-blue-600 hover:bg-blue-700 text-sm text-white font-semibold p-6  rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">
-
-                      Save Agency Information
-                     </Button>
-                      </div>
           </Form>
         </CardContent>
       </Card>

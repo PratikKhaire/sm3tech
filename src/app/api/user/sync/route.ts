@@ -1,44 +1,60 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { currentUser } from '@clerk/nextjs/server'
-import { createOrUpdateUser } from '@/lib/auth'
+import { NextResponse } from 'next/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
+import { connectDB } from '@/lib/db'
+import { User } from '@/models/user.model'
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const user = await currentUser()
-    
+    const { userId } = auth()
+
+    if (!userId) {
+      return new NextResponse('Unauthorized', { status: 401 })
+    }
+
+    // Get user from Clerk
+    const clerkUser = await clerkClient.users.getUser(userId)
+
+    if (!clerkUser) {
+      return NextResponse.json({ error: 'User not found in Clerk' }, { status: 404 })
+    }
+
+    const email = clerkUser.emailAddresses[0]?.emailAddress
+    if (!email) {
+      return NextResponse.json({ error: 'No email found' }, { status: 400 })
+    }
+
+    await connectDB()
+
+    // Check if user exists, if not create them
+    let user = await User.findOne({ email })
+
     if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      // Create new user in database
+      user = await User.create({
+        name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'User',
+        email: email,
+        avatar: clerkUser.imageUrl || '',
+        role: 'User',
+      })
+      console.log('Created new user:', email)
     }
-
-    // Create or update user in database
-    const userData = {
-      clerkId: user.id,
-      email: user.emailAddresses[0]?.emailAddress || '',
-      name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-      avatar: user.imageUrl || '',
-    }
-
-    const dbUser = await createOrUpdateUser(userData)
 
     return NextResponse.json({
-      message: 'User synced successfully',
+      success: true,
       user: {
-        id: dbUser._id,
-        clerkId: dbUser.clerkId,
-        email: dbUser.email,
-        name: dbUser.name,
-        role: dbUser.role
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
       }
-    })
+    }, { status: 200 })
 
   } catch (error) {
     console.error('Error syncing user:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to sync user' }, { status: 500 })
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ message: 'Use POST to sync user' }, { status: 405 })
 }

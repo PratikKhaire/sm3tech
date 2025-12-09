@@ -1,8 +1,11 @@
-import React, { useState } from "react";
+'use client'
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
-import { ClipboardCheck, UploadCloud } from "lucide-react";
+import { ClipboardCheck, UploadCloud, Loader2 } from "lucide-react";
 import FileUpload from "../file-upload";
+import { useToast } from "../ui/use-toast";
+import { getUser, getAgenciesByUser, updatePlanApproval } from "@/lib/queries";
 
 const planApprovalFields = [
     {
@@ -16,7 +19,7 @@ const planApprovalFields = [
         required: true,
     },
     {
-        name: "buildingPlan", 
+        name: "buildingPlan",
         label: "Building Construction Plan",
         required: true,
     },
@@ -27,7 +30,7 @@ const planApprovalFields = [
     },
     {
         name: "structuralDrawings",
-        label: "Structural Drawings and Details", 
+        label: "Structural Drawings and Details",
         required: true,
     },
     {
@@ -51,7 +54,7 @@ const planApprovalFields = [
         required: false,
     },
     {
-        name: "environmentClearance", 
+        name: "environmentClearance",
         label: "Environmental Clearance (if applicable)",
         required: false,
     },
@@ -68,17 +71,68 @@ const planApprovalFields = [
 ];
 
 const PlanApprovalForm = () => {
+    const { toast } = useToast();
     const [uploadedFiles, setUploadedFiles] = useState<{ [key: string]: string }>({});
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [agencyId, setAgencyId] = useState<string | null>(null);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const user = await getUser();
+                if (!user?._id) {
+                    toast({ title: 'Error', description: 'Please login first', variant: 'destructive' });
+                    return;
+                }
+                const agencies = await getAgenciesByUser(user._id);
+                if (agencies && agencies.length > 0) {
+                    setAgencyId(agencies[0]._id);
+                    if (agencies[0].planApproval) {
+                        setUploadedFiles(agencies[0].planApproval);
+                    }
+                } else {
+                    toast({ title: 'No Agency Found', description: 'Please create an agency first', variant: 'destructive' });
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                toast({ title: 'Error', description: 'Failed to load data', variant: 'destructive' });
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     const handleFileChange = (name: string, url?: string) => {
         setUploadedFiles((prev) => ({ ...prev, [name]: url || "" }));
     };
 
-    const handleSave = () => {
-        // Save logic here (API call, validation, etc.)
-        console.log("Plan Approval documents:", uploadedFiles);
-        alert("Plan Approval documents saved successfully!");
+    const handleSave = async () => {
+        if (!agencyId) {
+            toast({ title: 'Error', description: 'No agency found. Please create an agency first.', variant: 'destructive' });
+            return;
+        }
+        setSaving(true);
+        try {
+            await updatePlanApproval(agencyId, uploadedFiles);
+            toast({ title: 'Success', description: 'Plan Approval documents saved successfully!' });
+        } catch (error) {
+            console.error('Error saving:', error);
+            toast({ title: 'Error', description: 'Failed to save documents', variant: 'destructive' });
+        } finally {
+            setSaving(false);
+        }
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-white">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white p-4 md:p-8 font-sora">
@@ -152,10 +206,18 @@ const PlanApprovalForm = () => {
                     <div className="pt-8 flex justify-end">
                         <Button
                             type="button"
+                            disabled={saving || !agencyId}
                             className="bg-blue-600 hover:bg-blue-700 text-sm text-white font-semibold px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
                             onClick={handleSave}
                         >
-                            Save Plan Approval Documents
+                            {saving ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    Saving...
+                                </>
+                            ) : (
+                                'Save Plan Approval Documents'
+                            )}
                         </Button>
                     </div>
                 </CardContent>

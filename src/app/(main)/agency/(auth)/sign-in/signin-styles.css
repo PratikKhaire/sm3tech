@@ -1,4 +1,4 @@
-/* 
+/*
   Example: How to style Clerk components with normal CSS
   This shows you the "normal" way instead of the appearance prop
 */
@@ -83,8 +83,9 @@
 }
 
 /* Hide elements we don't want */
-.clerk-signin-wrapper [data-clerk-element="footer"],
-.clerk-signin-wrapper [data-clerk-element="footerAction"],
+/* DISABLED: This was hiding the "Sign up" link */
+/* .clerk-signin-wrapper [data-clerk-element="footer"],
+.clerk-signin-wrapper [data-clerk-element="footerAction"], */
 .clerk-signin-wrapper [data-clerk-element="headerTitle"],
 .clerk-signin-wrapper [data-clerk-element="headerSubtitle"] {
   display: none !important;

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -107,8 +107,8 @@
   .cl-badge,
   .cl-alert,
   .cl-warning,
-  .cl-footer,
-  .cl-footerAction,
+  /* .cl-footer, */ /* DISABLED: Contains Sign up link */
+  /* .cl-footerAction, */ /* DISABLED: Contains Sign up link */
   .cl-footerActionText,
   .cl-footerActionLink,
   .cl-internal,
@@ -119,8 +119,8 @@
   [data-clerk-element="badge"],
   [data-clerk-element="alert"],
   [data-clerk-element="warning"],
-  [data-clerk-element="footer"],
-  [data-clerk-element="footerAction"],
+  /* [data-clerk-element="footer"], */ /* DISABLED: Contains Sign up link */
+  /* [data-clerk-element="footerAction"], */ /* DISABLED: Contains Sign up link */
   [data-clerk-element="internal"],
   [data-clerk-element="poweredByClerk"],
   [data-clerk-element="clerkLogo"] {
@@ -163,12 +163,13 @@
   }
 
   /* Target specific Clerk footer elements */
-  .cl-signIn-footer,
+  /* DISABLED: This was hiding the "Sign up" link */
+  /* .cl-signIn-footer,
   .cl-signUp-footer,
   .cl-card-footer,
   .cl-footer-text {
     display: none !important;
-  }
+  } */
 
   /* Hide Clerk branding completely */
   [class*="clerk-logo"],

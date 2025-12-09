@@ -59,9 +59,20 @@ export const getUser = async () => {
 }
 export const upsertAgency = async (agencyData: Partial<IAgency>) => {
   try {
-    console.log('inside the upsertdata', agencyData)
+    console.log('=== UPSERT AGENCY STARTED ===')
+    console.log('Agency data received:', agencyData)
+
+    // CRITICAL: Connect to database first
+    console.log('Connecting to database...')
+    await connectDB()
+    console.log('Database connected')
+
+    console.log('Searching for existing agency with _id:', agencyData._id)
     let agency = await Agency.findOne({ _id: agencyData._id })
+    console.log('Existing agency found:', !!agency)
+
     if (agency) {
+      console.log('Updating existing agency...')
       agency = await Agency.findByIdAndUpdate(
         agency._id,
         {
@@ -134,7 +145,9 @@ export const upsertAgency = async (agencyData: Partial<IAgency>) => {
         },
         { new: true }
       )
+      console.log('Agency updated successfully')
     } else {
+      console.log('Creating new agency...')
       agency = new Agency({
         ...agencyData,
         occupierDocuments: {
@@ -196,11 +209,20 @@ export const upsertAgency = async (agencyData: Partial<IAgency>) => {
         },
         user: agencyData.user,
       })
+      console.log('Saving new agency to database...')
       await agency.save()
+      console.log('New agency saved successfully')
     }
+
+    console.log('Final agency object:', agency)
+    console.log('=== UPSERT AGENCY COMPLETED ===')
     return JSON.stringify(agency)
   } catch (error) {
-    console.log(error)
+    console.error('=== ERROR IN UPSERT AGENCY ===')
+    console.error('Error details:', error)
+    console.error('Error message:', error instanceof Error ? error.message : String(error))
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
+    throw error // Re-throw to propagate to caller
   }
 }
 // get all agencies
@@ -341,7 +363,7 @@ const deleteFile = async ({ fileKey }: { fileKey: string | string[] }) => {
   }
 }
 
-// to do 
+// to do
 export const getFactoryLicense = async (id: string): Promise<IFactoryLicenseDetails | null> => {
   try {
     await connectDB()
@@ -353,6 +375,166 @@ export const getFactoryLicense = async (id: string): Promise<IFactoryLicenseDeta
   } catch (error) {
     console.error('Error getting factory license:', error)
     throw new Error('Error getting factory license')
+  }
+}
+
+// Plan Approval CRUD Functions
+export const updatePlanApproval = async (
+  id: string,
+  planApprovalData: {
+    applicationForm?: string
+    siteLayout?: string
+    buildingPlan?: string
+    machineryLayout?: string
+    structuralDrawings?: string
+    ventilationPlan?: string
+    safetyMeasures?: string
+    landOwnership?: string
+    soilTest?: string
+    environmentClearance?: string
+    nabh1approval?: string
+    otherDocuments?: string
+  }
+) => {
+  try {
+    await connectDB()
+    const agency = await Agency.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          planApproval: {
+            applicationForm: planApprovalData.applicationForm,
+            siteLayout: planApprovalData.siteLayout,
+            buildingPlan: planApprovalData.buildingPlan,
+            machineryLayout: planApprovalData.machineryLayout,
+            structuralDrawings: planApprovalData.structuralDrawings,
+            ventilationPlan: planApprovalData.ventilationPlan,
+            safetyMeasures: planApprovalData.safetyMeasures,
+            landOwnership: planApprovalData.landOwnership,
+            soilTest: planApprovalData.soilTest,
+            environmentClearance: planApprovalData.environmentClearance,
+            nabh1approval: planApprovalData.nabh1approval,
+            otherDocuments: planApprovalData.otherDocuments,
+          },
+        },
+      },
+      { new: true }
+    )
+    return agency
+  } catch (error) {
+    console.error('Error updating plan approval:', error)
+    throw new Error('Error updating plan approval')
+  }
+}
+
+export const getPlanApproval = async (id: string) => {
+  try {
+    await connectDB()
+    const agency = await Agency.findById(id).lean().exec()
+    if (!agency) {
+      throw new Error('Agency not found')
+    }
+    return (agency as IAgency).planApproval || null
+  } catch (error) {
+    console.error('Error getting plan approval:', error)
+    throw new Error('Error getting plan approval')
+  }
+}
+
+export const deletePlanApproval = async (id: string) => {
+  try {
+    await connectDB()
+    const agency = await Agency.findById(id)
+    if (!agency) {
+      throw new Error('Agency not found')
+    }
+
+    // Delete all plan approval files
+    const planApproval = agency.planApproval
+    if (planApproval) {
+      planApproval.applicationForm &&
+        (await deleteFile({ fileKey: planApproval.applicationForm }))
+      planApproval.siteLayout &&
+        (await deleteFile({ fileKey: planApproval.siteLayout }))
+      planApproval.buildingPlan &&
+        (await deleteFile({ fileKey: planApproval.buildingPlan }))
+      planApproval.machineryLayout &&
+        (await deleteFile({ fileKey: planApproval.machineryLayout }))
+      planApproval.structuralDrawings &&
+        (await deleteFile({ fileKey: planApproval.structuralDrawings }))
+      planApproval.ventilationPlan &&
+        (await deleteFile({ fileKey: planApproval.ventilationPlan }))
+      planApproval.safetyMeasures &&
+        (await deleteFile({ fileKey: planApproval.safetyMeasures }))
+      planApproval.landOwnership &&
+        (await deleteFile({ fileKey: planApproval.landOwnership }))
+      planApproval.soilTest &&
+        (await deleteFile({ fileKey: planApproval.soilTest }))
+      planApproval.environmentClearance &&
+        (await deleteFile({ fileKey: planApproval.environmentClearance }))
+      planApproval.nabh1approval &&
+        (await deleteFile({ fileKey: planApproval.nabh1approval }))
+      planApproval.otherDocuments &&
+        (await deleteFile({ fileKey: planApproval.otherDocuments }))
+    }
+
+    // Clear the planApproval field
+    await Agency.findByIdAndUpdate(
+      id,
+      { $unset: { planApproval: '' } },
+      { new: true }
+    )
+
+    return { success: true, message: 'Plan approval deleted successfully' }
+  } catch (error) {
+    console.error('Error deleting plan approval:', error)
+    throw new Error('Error deleting plan approval')
+  }
+}
+
+export const updatePlanApprovalDocument = async (
+  id: string,
+  documentName: string,
+  newDocumentUrl: string
+) => {
+  try {
+    await connectDB()
+    const agency = await Agency.findById(id)
+    if (!agency) {
+      throw new Error('Agency not found')
+    }
+
+    // Delete old document if it exists
+    const oldDocument = agency.planApproval?.[documentName as keyof typeof agency.planApproval]
+    if (oldDocument && typeof oldDocument === 'string') {
+      await deleteFile({ fileKey: oldDocument })
+    }
+
+    // Update with new document
+    await Agency.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          [`planApproval.${documentName}`]: newDocumentUrl,
+        },
+      },
+      { new: true }
+    )
+
+    return { success: true, message: 'Document updated successfully' }
+  } catch (error) {
+    console.error('Error updating plan approval document:', error)
+    throw new Error('Error updating plan approval document')
+  }
+}
+
+export const deletePlanApprovalFile = async (id: string, fileKey: string) => {
+  try {
+    await deleteFile({ fileKey })
+    return { success: true, message: 'File deleted successfully' }
+  } catch (error) {
+    console.error('Error deleting plan approval file:', error)
+    throw new Error('Error deleting plan approval file')
   }
 }
 

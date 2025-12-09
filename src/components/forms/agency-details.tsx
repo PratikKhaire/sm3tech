@@ -67,7 +67,7 @@ const ownershipDocumentsSchema = z
     taxReceipt: z.string().optional(),
   })
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
-    message: 'At least one occupier document is required',
+    message: 'At least one ownership document is required',
   })
 const localAuthorityNoCSchema = z
   .object({
@@ -77,23 +77,19 @@ const localAuthorityNoCSchema = z
     midcNoC: z.string().optional(),
   })
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
-    message: 'At least one occupier document is required',
+    message: 'At least one NOC document is required',
   })
 const mpcbConsentSchema = z.object({
-  mpcbConsent: z.string(),
+  mpcbConsent: z.string().min(1, 'MPCB Consent is required'),
 })
 const sketchFactorySchema = z.object({
   sketch: z.string().optional(),
 })
 
-const electricityBillSchema = z
-  .object({
-    electricityBill: z.string().optional(),
-    loadSanctionletter: z.string().optional(),
-  })
-  .refine((data) => Object.values(data).some((value) => value !== undefined), {
-    message: 'At least one occupier document is required',
-  })
+const electricityBillSchema = z.object({
+  electricityBill: z.string().optional(),
+  loadSanctionletter: z.string().optional(),
+})
 
 const acceptanceLetterSchema = z.object({
   acceptanceLetter: z.string().optional(),
@@ -152,6 +148,54 @@ const AgencyDetails: React.FC<AgencyDetailsProps> = ({ data }) => {
         photo: data?.occupierDocuments?.photo || '',
         signature: data?.occupierDocuments?.signature || '',
       },
+      applicantIdProof: {
+        electionId: data?.applicantIdProof?.electionId || '',
+        drivingLicense: data?.applicantIdProof?.drivingLicense || '',
+        aadharCard: data?.applicantIdProof?.aadharCard || '',
+        passport: data?.applicantIdProof?.passport || '',
+        panCard: data?.applicantIdProof?.panCard || '',
+      },
+      previousFactoryLicense: {
+        previousFactoryLicense: data?.previousFactoryLicense?.previousFactoryLicense || '',
+        planApprovalLetter: data?.previousFactoryLicense?.planApprovalLetter || '',
+      },
+      privateLimitedCompany: {
+        listOfDirectors: data?.privateLimitedCompany?.listOfDirectors || '',
+        moa: data?.privateLimitedCompany?.moa || '',
+        boardResolution: data?.privateLimitedCompany?.boardResolution || '',
+        form32: data?.privateLimitedCompany?.form32 || '',
+      },
+      listOfRawMaterials: {
+        listOfRawMaterials: data?.listOfRawMaterials?.listOfRawMaterials || '',
+      },
+      ownershipDocuments: {
+        leaveAndLicenseAgreement: data?.ownershipDocuments?.leaveAndLicenseAgreement || '',
+        midcAllotmentLetter: data?.ownershipDocuments?.midcAllotmentLetter || '',
+        sevenTwelveExtract: data?.ownershipDocuments?.sevenTwelveExtract || '',
+        taxReceipt: data?.ownershipDocuments?.taxReceipt || '',
+      },
+      localAuthorityNoC: {
+        localAuthorityNoC: data?.localAuthorityNoC?.localAuthorityNoC || '',
+        corporationNoC: data?.localAuthorityNoC?.corporationNoC || '',
+        grampanchayatNoC: data?.localAuthorityNoC?.grampanchayatNoC || '',
+        midcNoC: data?.localAuthorityNoC?.midcNoC || '',
+      },
+      mpcbConsent: {
+        mpcbConsent: data?.mpcbConsent?.mpcbConsent || '',
+      },
+      sketchFactory: {
+        sketch: data?.sketchFactory?.sketch || '',
+      },
+      electricityBill: {
+        electricityBill: data?.electricityBill?.electricityBill || '',
+        loadSanctionletter: data?.electricityBill?.loadSanctionletter || '',
+      },
+      acceptanceLetter: {
+        acceptanceLetter: data?.acceptanceLetter?.acceptanceLetter || '',
+      },
+      flowChart: {
+        flowChart: data?.flowChart?.flowChart || '',
+      },
     },
   })
 
@@ -200,17 +244,65 @@ const AgencyDetails: React.FC<AgencyDetailsProps> = ({ data }) => {
 
   const handleSubmit = async (values: z.infer<typeof FormSchema>) => {
     try {
-      await upsertAgency({
-        id: data?.id ? data.id : v4(),
+      console.log('=== FORM SUBMIT STARTED ===')
+      console.log('Form values:', values)
+
+      // Initialize user first
+      console.log('Initializing user...')
+      await initUser({})
+      console.log('User initialized')
+
+      // Get current user
+      console.log('Fetching current user...')
+      const currentUser = await getUser()
+      console.log('Current user:', currentUser)
+
+      if (!currentUser) {
+        throw new Error('User not found. Please make sure you are logged in.')
+      }
+
+      // Prepare agency data
+      const agencyPayload = {
+        _id: data?._id ? data._id : v4(),
+        user: currentUser._id,
         occupierDocuments: values.occupierDocuments,
-      })
+        applicantIdProof: values.applicantIdProof,
+        previousFactoryLicense: values.previousFactoryLicense,
+        privateLimitedCompany: values.privateLimitedCompany,
+        listOfRawMaterials: values.listOfRawMaterials,
+        ownershipDocuments: values.ownershipDocuments,
+        localAuthorityNoC: values.localAuthorityNoC,
+        mpcbConsent: values.mpcbConsent,
+        sketchFactory: values.sketchFactory,
+        electricityBill: values.electricityBill,
+        acceptanceLetter: values.acceptanceLetter,
+        flowChart: values.flowChart,
+      }
+
+      console.log('Agency payload:', agencyPayload)
+      console.log('Saving to database...')
+
+      // Upsert agency with all form data
+      const result = await upsertAgency(agencyPayload)
+
+      console.log('Save result:', result)
+      console.log('=== FORM SUBMIT COMPLETED ===')
+
       setShowSuccessPopup(true)
-      toast({ title: 'Success!', description: 'Agency created successfully.' })
+      toast({ title: 'Success!', description: 'Agency details saved successfully.' })
+
+      // Redirect to inspection view after successful submission
+      setTimeout(() => {
+        router.push('/inspection-view')
+      }, 1500)
     } catch (error) {
+      console.error('=== ERROR SAVING AGENCY ===')
+      console.error('Error details:', error)
+      console.error('Error message:', error instanceof Error ? error.message : String(error))
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Could not create the agency.',
+        description: error instanceof Error ? error.message : 'Could not save agency details. Please try again.',
       })
     }
   }

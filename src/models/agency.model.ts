@@ -4,8 +4,8 @@ import mongoose, { Document, model, Schema } from 'mongoose'
 export interface IAgency extends Document {
   user: typeof mongoose.Schema.ObjectId
   occupierDocuments: {
-    photo?: string
     name: string
+    photo: string
     signature: string
   }
   applicantIdProof: {
@@ -41,7 +41,7 @@ export interface IAgency extends Document {
     midcNoC?: string
   }
   mpcbConsent: {
-    mpcbConsent?: string
+    mpcbConsent: string
   }
   sketchFactory: {
     sketch?: string
@@ -55,6 +55,20 @@ export interface IAgency extends Document {
   }
   flowChart: {
     flowChart?: string
+  }
+  planApproval?: {
+    applicationForm?: string
+    siteLayout?: string
+    buildingPlan?: string
+    machineryLayout?: string
+    structuralDrawings?: string
+    ventilationPlan?: string
+    safetyMeasures?: string
+    landOwnership?: string
+    soilTest?: string
+    environmentClearance?: string
+    nabh1approval?: string
+    otherDocuments?: string
   }
   status: 'pending' | 'approved' | 'rejected'
 }
@@ -115,6 +129,20 @@ const AgencySchema = new Schema<IAgency>(
     },
     flowChart: {
       flowChart: { type: String },
+    },
+    planApproval: {
+      applicationForm: { type: String },
+      siteLayout: { type: String },
+      buildingPlan: { type: String },
+      machineryLayout: { type: String },
+      structuralDrawings: { type: String },
+      ventilationPlan: { type: String },
+      safetyMeasures: { type: String },
+      landOwnership: { type: String },
+      soilTest: { type: String },
+      environmentClearance: { type: String },
+      nabh1approval: { type: String },
+      otherDocuments: { type: String },
     },
     status: {
       type: String,
